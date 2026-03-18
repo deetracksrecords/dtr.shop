@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "DTR Beat Store"
+version = "1.0.0"
+id = "artifacts/beat-store"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 19000
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/beat-store run dev"
+
+[services.env]
+PORT = "19000"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/beat-store", "run", "build"]
+publicDir = "artifacts/beat-store/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
