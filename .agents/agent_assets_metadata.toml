@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "PU0gXwH4rFD3n4UVIngEe"
+uri = "file://attached_assets/DTR-Admin-Guide.pdf"
+type = "pdf"
+title = "DEE TRACKS RECORDS — Updated Admin Guide v2.0"

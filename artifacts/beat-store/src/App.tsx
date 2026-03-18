@@ -71,6 +71,44 @@ const defaultAdmin: AdminSettings = {
 const VAULT_PASSWORD = "MIDNIGHTSECRETS";
 function fmt(n:number){ return "R\u00a0"+Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
 
+/* ── PayFast Payment Integration ── */
+const PAYFAST_MERCHANT_ID = "10000100"; // ← Replace with your PayFast Merchant ID
+const PAYFAST_MERCHANT_KEY = "46f0cd694581a"; // ← Replace with your PayFast Merchant Key
+const PAYFAST_SANDBOX = true; // ← Set to false when going live
+
+function submitPayFastPayment(items: Beat[], totalAmount: number, firstName: string, lastName: string, email: string) {
+  const baseUrl = PAYFAST_SANDBOX
+    ? "https://sandbox.payfast.co.za/eng/process"
+    : "https://www.payfast.co.za/eng/process";
+  const domain = window.location.origin;
+  const params: Record<string, string> = {
+    merchant_id: PAYFAST_MERCHANT_ID,
+    merchant_key: PAYFAST_MERCHANT_KEY,
+    return_url: `${domain}/?payment=success`,
+    cancel_url: `${domain}/?payment=cancelled`,
+    notify_url: `${domain}/api/payment/notify`,
+    name_first: firstName || "Customer",
+    name_last: lastName || "Buyer",
+    email_address: email || "customer@example.com",
+    m_payment_id: `DTR-${Date.now()}`,
+    amount: totalAmount.toFixed(2),
+    item_name: items.length === 1 ? items[0].name : `${items.length} Beats — Dee Tracks Records`,
+    item_description: items.map(b => b.name).join(", ").substring(0, 255),
+  };
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = baseUrl;
+  Object.entries(params).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
+
 /* ── Waveform ── */
 function Waveform({ playing, progress }:{ playing:boolean; progress:number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -225,6 +263,8 @@ export default function App() {
   const [savePromptOpen, setSavePromptOpen] = useState(false);
   const [purchasedBeat, setPurchasedBeat] = useState<Beat|null>(null);
   const [buyerName, setBuyerName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [leadMagnetOpen, setLeadMagnetOpen] = useState(false);
   const [leadEmail, setLeadEmail] = useState("");
   const [leadGenre, setLeadGenre] = useState<"Trap"|"RnB"|"Trapsoul"|"">(""); 
@@ -307,7 +347,7 @@ export default function App() {
 
   const handleCheckout=()=>{
     const firstBeat=cart.find(b=>b.category==="beat")||cart[0]||null;
-    setPurchasedBeat(firstBeat); setCartOpen(false); setSavePromptOpen(true);
+    setPurchasedBeat(firstBeat); setCartOpen(false); setPaymentOpen(true);
   };
   const handleAdminLogin=()=>{
     if(adminKey===ADMIN_PASSWORD){setAdminAuthed(true);setAdminOpen(true);setAccountOpen(false);}
@@ -340,6 +380,8 @@ export default function App() {
         @keyframes spin{to{transform:rotate(360deg)}}
         .ann-inner{display:inline-block;white-space:nowrap;animation:marquee 30s linear infinite}
         .logo-disc{animation:spin 12s linear infinite}
+        @keyframes logoShimmer{0%{background-position:0% center}50%{background-position:100% center}100%{background-position:0% center}}
+        .logo-text-main{animation:logoShimmer 2.5s ease-in-out infinite;background-size:300% auto}
         .beat-card{transition:transform 0.3s,border-color 0.3s,box-shadow 0.3s}
         .beat-card:hover{transform:translateY(-4px)}
         .beat-overlay{opacity:0;transition:opacity 0.3s}
@@ -385,9 +427,9 @@ export default function App() {
             ) : (
               <div className="logo-disc" style={{width:38,height:38,borderRadius:"50%",background:`linear-gradient(135deg,${GOLD},rgba(212,175,55,0.3))`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🎵</div>
             )}
-            <div style={{lineHeight:1}}>
-              <span style={{display:"block",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:14,letterSpacing:"0.2em",background:"linear-gradient(135deg,#f0d060,#D4AF37,#b8860b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>DEE TRACKS</span>
-              <span style={{display:"block",fontFamily:"'Playfair Display',serif",fontSize:8,letterSpacing:"0.4em",color:"rgba(212,175,55,0.6)"}}>RECORDS</span>
+            <div style={{lineHeight:1.1}}>
+              <span className="logo-text-main" style={{display:"block",fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:17,letterSpacing:"0.22em",background:"linear-gradient(90deg,#8B6914,#f5e06e,#D4AF37,#fffbe0,#f0c830,#D4AF37,#8B6914)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 0 6px rgba(212,175,55,0.55))"}}>DEE TRACKS</span>
+              <span style={{display:"block",fontFamily:"'Playfair Display',serif",fontSize:9,fontWeight:700,letterSpacing:"0.55em",background:"linear-gradient(90deg,#c9960c,#f5d960,#D4AF37)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",opacity:0.9,marginTop:1}}>RECORDS</span>
             </div>
           </button>
 
@@ -529,10 +571,10 @@ export default function App() {
               {(appliedDiscount||buy2get1Active) && <div style={{fontSize:11,color:C.muted}}>Subtotal: <span style={{textDecoration:"line-through"}}>{fmt(cartSubtotal)}</span></div>}
               <div style={{fontWeight:700,fontSize:16,marginLeft:"auto"}}>Total: <strong style={{color:GOLD,fontSize:20}}>{fmt(cartTotal)}</strong></div>
             </div>
-            <button className="btn-gold" onClick={handleCheckout} style={{width:"100%",display:"flex",justifyContent:"center",padding:"13px",background:GOLD,color:"#000",fontWeight:800,fontSize:13,letterSpacing:"0.08em",textTransform:"uppercase",border:"none",borderRadius:999,cursor:"pointer",boxShadow:"0 0 30px rgba(212,175,55,0.3)"}}>
-              Guest Checkout →
+            <button className="btn-gold" onClick={handleCheckout} style={{width:"100%",display:"flex",justifyContent:"center",gap:8,padding:"13px",background:GOLD,color:"#000",fontWeight:800,fontSize:13,letterSpacing:"0.08em",textTransform:"uppercase",border:"none",borderRadius:999,cursor:"pointer",boxShadow:"0 0 30px rgba(212,175,55,0.3)"}}>
+              💳 Pay with PayFast →
             </button>
-            <p style={{textAlign:"center",fontSize:10,color:C.muted,marginTop:7}}>No account required • Instant delivery</p>
+            <p style={{textAlign:"center",fontSize:10,color:C.muted,marginTop:7}}>EFT • Credit Card • Instant EFT (Ozow) • Secure</p>
           </div>
         )}
       </div>
@@ -640,12 +682,40 @@ export default function App() {
         </div>
       )}
 
+      {/* PayFast Payment Modal */}
+      {paymentOpen && (
+        <div className="modal-overlay" onClick={()=>setPaymentOpen(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:"32px",maxWidth:460,width:"100%",textAlign:"center"}}>
+            <div style={{fontSize:44,marginBottom:10}}>💳</div>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,marginBottom:6}}>Complete Your Purchase</h3>
+            <p style={{color:C.muted,fontSize:13,lineHeight:1.6,marginBottom:20}}>You'll be securely redirected to PayFast to complete your ZAR payment.</p>
+            <div style={{background:"rgba(212,175,55,0.07)",border:"1px solid rgba(212,175,55,0.2)",borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:C.muted}}>{cart.length} item{cart.length!==1?"s":""}</span>
+              <strong style={{color:GOLD,fontSize:18}}>{fmt(cartTotal)}</strong>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+              <input className="inp" type="text" placeholder="First name" value={buyerName.split(" ")[0]||buyerName} onChange={e=>setBuyerName(e.target.value)} style={{width:"100%",background:C.inputBg,border:`1px solid ${C.inputBorder}`,borderRadius:10,padding:"11px 14px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              <input className="inp" type="email" placeholder="Email address (for receipt & download)" value={buyerEmail} onChange={e=>setBuyerEmail(e.target.value)} style={{width:"100%",background:C.inputBg,border:`1px solid ${C.inputBorder}`,borderRadius:10,padding:"11px 14px",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <button className="btn-gold" onClick={()=>{
+              if(!buyerEmail.includes("@")){showToast("⚠️ Please enter a valid email address.");return;}
+              const [fn,...rest]=buyerName.trim().split(" ");
+              submitPayFastPayment(cart, cartTotal, fn||"Customer", rest.join(" ")||"Buyer", buyerEmail);
+            }} style={{width:"100%",display:"flex",justifyContent:"center",gap:8,padding:"14px",background:GOLD,color:"#000",fontWeight:800,fontSize:14,textTransform:"uppercase",letterSpacing:"0.08em",border:"none",borderRadius:999,cursor:"pointer",boxShadow:"0 0 24px rgba(212,175,55,0.4)"}}>
+              🔒 Pay {fmt(cartTotal)} via PayFast →
+            </button>
+            <p style={{marginTop:12,fontSize:10,color:C.muted}}>EFT • Credit Card • Instant EFT (Ozow) • Secure 256-bit SSL</p>
+            <button onClick={()=>setPaymentOpen(false)} style={{marginTop:8,background:"transparent",border:"none",color:C.muted,fontSize:12,cursor:"pointer"}}>← Back to cart</button>
+          </div>
+        </div>
+      )}
+
       {/* Post-Purchase Modal */}
       {savePromptOpen && (
         <div className="modal-overlay" onClick={()=>setSavePromptOpen(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:"32px",maxWidth:460,width:"100%",textAlign:"center"}}>
             <div style={{fontSize:44,marginBottom:14}}>🎉</div>
-            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,marginBottom:10}}>Purchase Complete!</h3>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,marginBottom:10}}>Payment Received!</h3>
             <p style={{color:C.muted,fontSize:14,lineHeight:1.7,marginBottom:16}}>Your files are ready. Save your details for lifetime Cloud Vault access.</p>
             {purchasedBeat && (
               <div style={{marginBottom:20}}>
