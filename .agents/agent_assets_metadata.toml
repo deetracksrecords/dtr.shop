@@ -12,3 +12,9 @@ id = "pOP3T_m7BZQPafWAghrwH"
 uri = "file://attached_assets/DTR-Beat-Store-index.zip"
 type = "unspecified"
 title = "DTR Beat Store — index.html (ZIP)"
+
+[[outputs]]
+id = "n8R6lDCBLJKoKMXxaxlTa"
+uri = "file://attached_assets/DTR-Publishing-ToDo.pdf"
+type = "pdf"
+title = "DTR Beat Store — Pre-Launch Publishing Checklist"
