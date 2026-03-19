@@ -1,0 +1,26 @@
+Phase 1: Responsive Polish (Zero Overlap)
+If a rapper is on their phone looking for a dark Trap or smooth R&B vibe, a clunky mobile interface will kill the sale instantly. We need to lock down the UI.
+
+The Persistent Player Padding: The audio player fixed to the bottom often overlaps the last items on a mobile screen. We need to add a dynamic padding-bottom (around 80px to 100px) to your main div wrapper so users can scroll all the way down without the player blocking content.
+
+Fluid Grid Systems: Instead of fixed widths, we will use CSS Grid for your beat catalog: grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));. This ensures the cards elegantly stack on mobile and expand on a PC without ever overlapping.
+
+Mobile Touch Targets: Every "Add to Cart" button or play icon needs a minimum touch area of 44x44px. If they are too small, users will accidentally click the wrong tier or pause the beat when trying to buy it.
+
+Phase 2: Pro-Level Sales Features (The BeatStars Playbook)
+To make customers want to buy, the purchasing friction must be zero, and the upsells must feel natural.
+
+Dynamic Bulk Deal Progress Bar: You already have the logic for "Buy 2 Get 1 Free." We need to visualize this. Add a sticky banner at the top of the store that fills up as they add beats. “Add 1 more beat to unlock a free lease!” Gamifying the checkout increases the average order value drastically.
+
+License Quick-Select Sheet: When a user clicks "Add," do not take them to a new page. Slide up a sleek menu from the bottom (on mobile) or a clean modal (on PC) that lists Basic, Premium, and Exclusive tiers side-by-side with clear price anchoring.
+
+Instant Trackout/Stem Preview: Top platforms let artists preview the individual stems visually (or audibly) before buying the Exclusive tier. It builds massive trust in the quality of your engineering.
+
+Phase 3: Public Streaming vs. Private Storing
+You need to protect your assets while delivering a seamless experience to paying customers.
+
+Public Streaming (The Decoy): The audio files loaded into your web player should never be your final masters. We need to code the player to stream lightweight, 128kbps MP3s that have your producer tag burned in every 30 seconds. This prevents people from ripping the audio directly from the network tab.
+
+Private Storing (Secure Delivery): For the actual purchased files and your Vault contents, you cannot store them in the public GitHub/Vercel repository. We need to set up an AWS S3 bucket (or a free alternative like Supabase Storage).
+
+Automated Expiring Links: When PayFast sends a successful payment notification to your site, your backend will generate a secure, temporary URL to the un-tagged WAVs and stems. This link should expire after 24 hours, completely eliminating piracy and link-sharing.

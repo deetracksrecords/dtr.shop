@@ -265,6 +265,8 @@ export default function App() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [licensePickerOpen, setLicensePickerOpen] = useState(false);
+  const [licensePickerBeat, setLicensePickerBeat] = useState<Beat|null>(null);
   const [leadMagnetOpen, setLeadMagnetOpen] = useState(false);
   const [leadEmail, setLeadEmail] = useState("");
   const [leadGenre, setLeadGenre] = useState<"Trap"|"RnB"|"Trapsoul"|"">(""); 
@@ -316,6 +318,20 @@ export default function App() {
     setCart(prev=>[...prev,b]);
     if(cart.filter(c=>c.category==="beat").length===2) showToast("🎉 Add 1 more beat — Buy 2 Get 1 Free activates!");
     else showToast(`🛒 ${b.name} added!`);
+  };
+  const openLicensePicker = (id:number)=>{
+    const b = beatsData.find(x=>x.id===id); if(!b||b.soldOut) return;
+    if(b.freeDownload){showToast("🎁 Free download sent!");return;}
+    setLicensePickerBeat(b); setLicensePickerOpen(true);
+  };
+  const addToCartWithLicense = (beat:Beat, licenseType:string, price:number)=>{
+    if(cart.find(x=>x.id===beat.id)){showToast("Already in cart!");setLicensePickerOpen(false);return;}
+    const item = {...beat, price, tag:licenseType};
+    setCart(prev=>[...prev,item]);
+    setLicensePickerOpen(false);
+    const beatCount = cart.filter(c=>c.category==="beat").length;
+    if(beatCount===2) showToast("🎉 Buy 2 Get 1 Free unlocked!");
+    else showToast(`🛒 ${beat.name} (${licenseType}) added!`);
   };
   const removeFromCart=(id:number)=>setCart(prev=>prev.filter(x=>x.id!==id));
   const toggleWishlist=(id:number)=>{
@@ -371,7 +387,7 @@ export default function App() {
     : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
 
   return (
-    <div style={{background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif",minHeight:"100vh",lineHeight:1.6,transition:"background 0.3s,color 0.3s"}}>
+    <div style={{background:C.bg,color:C.text,fontFamily:"'Inter',sans-serif",minHeight:"100vh",lineHeight:1.6,transition:"background 0.3s,color 0.3s",paddingBottom:playing?"90px":0}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -411,6 +427,9 @@ export default function App() {
         @media(max-width:900px){.nav-links-row{gap:14px!important}}
         @media(max-width:768px){.nav-links-row{display:none!important}.stats-grid{grid-template-columns:repeat(2,1fr)!important}.footer-grid{grid-template-columns:1fr!important}}
         @media(max-width:480px){.beat-grid{grid-template-columns:repeat(2,1fr)!important;gap:10px!important}.license-grid{grid-template-columns:1fr!important}}
+        .cart-btn{min-height:44px;min-width:44px}
+        .play-btn{min-height:44px;min-width:44px;touch-action:manipulation}
+        @keyframes progressPulse{0%,100%{opacity:1}50%{opacity:0.7}}
       `}</style>
 
       {/* Announcement Bar */}
@@ -459,10 +478,33 @@ export default function App() {
       </nav>
 
       {/* Pages */}
-      {page==="home" && <HomePage C={C} theme={theme} goToPage={goToPage} beats={beatsData} onPlay={playBeat} onCart={addToCart} onToast={showToast} inWishlist={inWishlist} toggleWishlist={toggleWishlist} onJoinInner={()=>{setAccountTab("signup");setAccountOpen(true);}} onFreeDownload={()=>setLeadMagnetOpen(true)} artistCredits={artistCredits} />}
+      {page==="home" && <HomePage C={C} theme={theme} goToPage={goToPage} beats={beatsData} onPlay={playBeat} onCart={openLicensePicker} onToast={showToast} inWishlist={inWishlist} toggleWishlist={toggleWishlist} onJoinInner={()=>{setAccountTab("signup");setAccountOpen(true);}} onFreeDownload={()=>setLeadMagnetOpen(true)} artistCredits={artistCredits} />}
 
       {page==="store" && (
         <div style={{maxWidth:1280,margin:"0 auto",padding:"56px 24px"}}>
+
+          {/* ── Bulk Deal Progress Bar ── */}
+          {storeTab==="beat" && (()=>{
+            const beatCount = cart.filter(c=>c.category==="beat").length;
+            const target = 3;
+            const pct = Math.min((beatCount / target) * 100, 100);
+            const remaining = Math.max(target - beatCount, 0);
+            return (
+              <div style={{marginBottom:24,borderRadius:14,background:"rgba(212,175,55,0.07)",border:`1px solid ${buy2get1Active?"rgba(212,175,55,0.5)":C.border}`,padding:"14px 18px",transition:"border-color 0.3s"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:buy2get1Active?GOLD:C.muted}}>
+                    {buy2get1Active ? "🎉 Buy 2 Get 1 Free — Unlocked!" : remaining===1 ? "🔥 Add 1 more beat to unlock a free lease!" : `Add ${remaining} more beat${remaining!==1?"s":""} to unlock Buy 2 Get 1 Free`}
+                  </span>
+                  <span style={{fontSize:11,fontWeight:800,color:GOLD}}>{beatCount}/{target}</span>
+                </div>
+                <div style={{height:6,borderRadius:999,background:"rgba(255,255,255,0.06)",overflow:"hidden"}}>
+                  <div style={{height:"100%",borderRadius:999,background:`linear-gradient(90deg,${GOLD},#f5e06e)`,width:`${pct}%`,transition:"width 0.4s ease",animation:buy2get1Active?"progressPulse 1.5s infinite":undefined}}/>
+                </div>
+                {buy2get1Active && <p style={{fontSize:10,color:GOLD,marginTop:6,fontWeight:600}}>✓ Cheapest beat is FREE — applied automatically at checkout</p>}
+              </div>
+            );
+          })()}
+
           <div style={{marginBottom:28}}>
             <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(24px,4vw,36px)",fontWeight:700,marginBottom:4}}>
               {similarTo ? `Beats Similar to "${similarTo.name}"` : "The Catalog"}
@@ -508,7 +550,7 @@ export default function App() {
               <p>No beats match that filter. Try adjusting your search.</p>
             </div>
           ) : (
-            <BeatGrid beats={base} onPlay={playBeat} onCart={addToCart} onToast={showToast} inWishlist={inWishlist} toggleWishlist={toggleWishlist} C={C} onFindSimilar={(b)=>{setSimilarTo(b);setStoreTab("beat");}} />
+            <BeatGrid beats={base} onPlay={playBeat} onCart={openLicensePicker} onToast={showToast} inWishlist={inWishlist} toggleWishlist={toggleWishlist} C={C} onFindSimilar={(b)=>{setSimilarTo(b);setStoreTab("beat");}} />
           )}
         </div>
       )}
@@ -519,7 +561,7 @@ export default function App() {
 
       {page==="vault" && (
         <VaultPage C={C} unlocked={vaultUnlocked} vaultInput={vaultInput} setVaultInput={setVaultInput} onTry={tryVault}
-          beats={beatsData.filter(b=>b.vault)} onPlay={playBeat} onCart={addToCart} onToast={showToast}
+          beats={beatsData.filter(b=>b.vault)} onPlay={playBeat} onCart={openLicensePicker} onToast={showToast}
           inWishlist={inWishlist} toggleWishlist={toggleWishlist} onJoin={()=>{setAccountTab("signup");setAccountOpen(true);}}/>
       )}
 
@@ -736,6 +778,40 @@ export default function App() {
         </div>
       )}
 
+      {/* ── License Picker Modal ── */}
+      {licensePickerOpen && licensePickerBeat && (
+        <div className="modal-overlay" onClick={()=>setLicensePickerOpen(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid rgba(212,175,55,0.3)`,borderRadius:20,padding:"32px 28px",maxWidth:480,width:"100%"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+              <div>
+                <div style={{fontSize:10,letterSpacing:"0.15em",textTransform:"uppercase",color:GOLD,fontWeight:700,marginBottom:4}}>Choose Your License</div>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(16px,3vw,20px)",fontWeight:700}}>{licensePickerBeat.name}</h3>
+              </div>
+              <button onClick={()=>setLicensePickerOpen(false)} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {([
+                {label:"Basic MP3 Lease",desc:"MP3 • 10k streams • Non-exclusive",price:licensePickerBeat.basicPrice,icon:"🎵",color:C.card2},
+                {label:"Premium WAV Lease",desc:"WAV + stems • 100k streams • Non-exclusive",price:licensePickerBeat.premiumPrice,icon:"⭐",color:"rgba(212,175,55,0.07)"},
+                {label:"Exclusive Rights",desc:"All files • Unlimited • Full ownership",price:licensePickerBeat.exclusivePrice,icon:"👑",color:"rgba(212,175,55,0.12)"},
+              ] as const).map(opt=>(
+                <button key={opt.label} onClick={()=>addToCartWithLicense(licensePickerBeat, opt.label, opt.price)}
+                  style={{background:opt.color,border:`1px solid ${opt.price===licensePickerBeat.exclusivePrice?"rgba(212,175,55,0.4)":C.border}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",textAlign:"left",transition:"border-color 0.2s",color:C.text}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{opt.icon} {opt.label}</div>
+                      <div style={{fontSize:11,color:C.muted}}>{opt.desc}</div>
+                    </div>
+                    <div style={{fontWeight:800,fontSize:16,color:GOLD,whiteSpace:"nowrap",marginLeft:12}}>R{opt.price}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p style={{fontSize:10,color:C.muted,textAlign:"center",marginTop:16}}>Secure payment via PayFast • Instant delivery</p>
+          </div>
+        </div>
+      )}
+
       {/* Lead Magnet */}
       {leadMagnetOpen && (
         <div className="modal-overlay" onClick={()=>{setLeadMagnetOpen(false);setLeadGenre("");}}>
@@ -799,7 +875,7 @@ function BeatGrid({beats,onPlay,onCart,onToast,inWishlist,toggleWishlist,C,onFin
   inWishlist:(id:number)=>boolean;toggleWishlist:(id:number)=>void;C:any;onFindSimilar?:(b:Beat)=>void;
 }){
   return (
-    <div className="beat-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:18}}>
+    <div className="beat-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:18}}>
       {beats.map(b=>(
         <div key={b.id} className="beat-card" style={{background:b.vault?"linear-gradient(135deg,rgba(212,175,55,0.05),transparent)":C.card,borderRadius:16,overflow:"hidden",border:`1px solid ${b.featured?"rgba(212,175,55,0.4)":C.border}`,position:"relative"}}>
           {b.featured&&<div style={{position:"absolute",top:10,right:10,zIndex:3,background:GOLD,color:"#000",fontSize:7,fontWeight:800,padding:"3px 8px",borderRadius:999,letterSpacing:"0.1em"}}>★ FEATURED</div>}
@@ -809,7 +885,7 @@ function BeatGrid({beats,onPlay,onCart,onToast,inWishlist,toggleWishlist,C,onFin
           <div style={{position:"relative",aspectRatio:"1",background:"#111",overflow:"hidden"}}>
             <img className="beat-img" src={b.img} alt={b.name} loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.75}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
             <div className="beat-overlay" style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 60%)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <button onClick={()=>onPlay(b.id)} style={{width:50,height:50,borderRadius:"50%",background:GOLD,color:"#000",fontSize:18,border:"none",cursor:"pointer",boxShadow:"0 0 30px rgba(212,175,55,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
+              <button className="play-btn" onClick={()=>onPlay(b.id)} style={{width:50,height:50,borderRadius:"50%",background:GOLD,color:"#000",fontSize:18,border:"none",cursor:"pointer",boxShadow:"0 0 30px rgba(212,175,55,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
             </div>
             <div style={{position:"absolute",top:10,left:b.freeDownload||b.vault?56:10,background:"rgba(0,0,0,0.75)",color:"#888",fontSize:7,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",padding:"3px 7px",borderRadius:4,backdropFilter:"blur(6px)"}}>{b.tag}</div>
           </div>
@@ -826,8 +902,8 @@ function BeatGrid({beats,onPlay,onCart,onToast,inWishlist,toggleWishlist,C,onFin
             {b.artistType&&<div style={{fontSize:8,color:C.muted,marginBottom:6,background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 7px",display:"inline-block"}}>{b.artistType}</div>}
             {b.tier && <TieredPriceBar tier={b.tier} C={C}/>}
             <div style={{display:"flex",gap:6,marginTop:8}}>
-              <button onClick={()=>b.freeDownload?onToast("🎁 Free download sent!"):onCart(b.id)} disabled={!!b.soldOut} style={{flex:1,padding:"7px",background:b.freeDownload?"#4ade80":GOLD,color:"#000",fontSize:9,fontWeight:800,letterSpacing:"0.05em",textTransform:"uppercase",border:"none",borderRadius:7,cursor:b.soldOut?"not-allowed":"pointer"}}>
-                {b.soldOut?"Sold Out":b.freeDownload?"Free Download":"Add to Cart"}
+              <button className="cart-btn" onClick={()=>b.freeDownload?onToast("🎁 Free download sent!"):onCart(b.id)} disabled={!!b.soldOut} style={{flex:1,padding:"7px",background:b.freeDownload?"#4ade80":GOLD,color:"#000",fontSize:9,fontWeight:800,letterSpacing:"0.05em",textTransform:"uppercase",border:"none",borderRadius:7,cursor:b.soldOut?"not-allowed":"pointer",touchAction:"manipulation"}}>
+                {b.soldOut?"Sold Out":b.freeDownload?"Free Download":"+ Add to Cart"}
               </button>
               {onFindSimilar && (
                 <button onClick={()=>onFindSimilar(b)} title="Find similar beats" style={{padding:"7px 9px",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:7,color:C.muted,fontSize:10,cursor:"pointer"}}>≈</button>
